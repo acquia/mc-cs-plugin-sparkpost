@@ -198,4 +198,36 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
             ],
         };
     }
+
+    /**
+     * For the message with 'type': 'out of band' and 'bounce class': 60 should never be called transportCallback.
+     */
+    public function testProcessCallbackRequestWhenSoftBounce(): void
+    {
+        $payload = <<<JSON
+[
+    {
+      "msys": {
+        "message_event": {
+            "reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
+            "msg_from":"msprvs1=18290qww0ygol=bounces-44585-172@bounces.mauticsparkt3.com",
+            "event_id":"13251575597141532",
+            "raw_reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
+            "error_code":"550",
+            "subaccount_id":172,
+            "delv_method":"esmtp",
+            "customer_id":44585,
+            "type":"out_of_band",
+            "bounce_class":"60",
+            "timestamp":"2020-01-22T21:59:32.000Z"
+        }
+      }
+    }
+]
+JSON;
+        $request = new Request([], json_decode($payload, true));
+        $this->sparkpostTransport->processCallbackRequest($request);
+        $this->transportCallback->expects($this->never())
+            ->method($this->anything());
+    }
 }
