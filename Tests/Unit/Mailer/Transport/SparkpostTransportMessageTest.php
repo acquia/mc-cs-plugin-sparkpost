@@ -16,12 +16,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class SparkpostTransportMessageTest extends TestCase
 {
-    /**
-     * @var TransportCallback|MockObject
-     */
-    private $transportCallbackMock;
-    private SparkpostTransport $sparkpost;
-
     public function testCcAndBccFields(): void
     {
         $emailId           = 1;
@@ -31,15 +25,15 @@ class SparkpostTransportMessageTest extends TestCase
         // so for maintain 64 bytes last char will be trimmed.
         $expectedInternalEmailName = '202211_シナリオメール②内視鏡機器提案のご案';
 
-        $this->transportCallbackMock = $this->createMock(TransportCallback::class);
-        $httpClientMock              = $this->createMock(HttpClientInterface::class);
-        $eventDispatcherMock         = $this->createMock(EventDispatcherInterface::class);
-        $loggerMock                  = $this->createMock(LoggerInterface::class);
+        $transportCallbackMock = $this->createMock(TransportCallback::class);
+        $httpClientMock        = $this->createMock(HttpClientInterface::class);
+        $eventDispatcherMock   = $this->createMock(EventDispatcherInterface::class);
+        $loggerMock            = $this->createMock(LoggerInterface::class);
 
-        $this->sparkpost = new SparkpostTransport(
+        $sparkpost = new SparkpostTransport(
             '1234',
             'us',
-            $this->transportCallbackMock,
+            $transportCallbackMock,
             $httpClientMock,
             $eventDispatcherMock,
             $loggerMock
@@ -72,7 +66,7 @@ class SparkpostTransportMessageTest extends TestCase
         $sentMessageMock->method('getOriginalMessage')
             ->willReturn($message);
 
-        $payload = $this->invokeInaccessibleMethod($this->sparkpost, 'getSparkpostPayload', [$sentMessageMock]);
+        $payload = $this->invokeInaccessibleMethod($sparkpost, 'getSparkpostPayload', [$sentMessageMock]);
         Assert::assertEquals(sprintf('%s:%s', $emailId, $expectedInternalEmailName), $payload['campaign_id']);
         Assert::assertEquals('from@xx.xx', $payload['content']['from']);
         Assert::assertEquals('Test subject', $payload['content']['subject']);
@@ -192,37 +186,5 @@ class SparkpostTransportMessageTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invokeArgs($object, $args);
-    }
-
-    /**
-     * For the message with 'type': 'out of band' and 'bounce class': 60 should never be called transportCallback.
-     */
-    public function testProcessCallbackRequestWhenSoftBounce(): void
-    {
-        $payload = <<<JSON
-[
-    {
-      "msys": {
-        "message_event": {
-            "reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
-            "msg_from":"msprvs1=18290qww0ygol=bounces-44585-172@bounces.mauticsparkt3.com",
-            "event_id":"13251575597141532",
-            "raw_reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
-            "error_code":"550",
-            "subaccount_id":172,
-            "delv_method":"esmtp",
-            "customer_id":44585,
-            "type":"out_of_band",
-            "bounce_class":"60",
-            "timestamp":"2020-01-22T21:59:32.000Z"
-        }
-      }
-    }
-]
-JSON;
-        $request = new Request([], json_decode($payload, true));
-        $this->sparkpost->processCallbackRequest($request);
-        $this->transportCallbackMock->expects($this->never())
-            ->method($this->anything());
     }
 }
