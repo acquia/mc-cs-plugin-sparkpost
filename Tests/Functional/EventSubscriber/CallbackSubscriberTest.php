@@ -9,6 +9,7 @@ use Mautic\CoreBundle\Test\MauticMysqlTestCase;
 use Mautic\EmailBundle\Entity\Stat;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\Entity\Lead;
+use MauticPlugin\SparkpostBundle\EventSubscriber\CallbackSubscriber;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -226,8 +227,24 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
 ] 
 JSON;
         $request = new Request([], json_decode($payload, true));
-        $this->sparkpost->processCallbackRequest($request);
-        $this->transportCallbackMock->expects($this->never())
+        $event = new TransportWebhookEvent($request);
+
+        // Create the event dispatcher and subscriber
+        $dispatcher = new EventDispatcher();
+
+        $transportCallback = new \Mautic\EmailBundle\Model\TransportCallback();
+        $subscriber = new CallbackSubscriber(
+            $transportCallback,
+            new \Mautic\CoreBundle\Helper\CoreParametersHelper()
+        );
+
+        // Add the subscriber to the dispatcher
+        $dispatcher->addSubscriber($subscriber);
+
+        // Dispatch the event
+        $dispatcher->dispatch($event, EmailEvents::ON_TRANSPORT_WEBHOOK);
+
+        $this->transportCallback->expects($this->never())
             ->method($this->anything());
     }
 }
