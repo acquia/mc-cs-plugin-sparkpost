@@ -8,8 +8,6 @@ use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
 use Mautic\EmailBundle\Entity\Stat;
 use Mautic\EmailBundle\Event\TransportWebhookEvent;
-use Mautic\EmailBundle\Model\EmailStatModel;
-use Mautic\EmailBundle\MonitoredEmail\Search\ContactFinder;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\SparkpostBundle\EventSubscriber\CallbackSubscriber;
