@@ -6,8 +6,10 @@ namespace MauticPlugin\SparkpostBundle\Tests\Functional\EventSubscriber;
 
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
+use Mautic\EmailBundle\EmailEvents;
 use Mautic\EmailBundle\Entity\Stat;
 use Mautic\EmailBundle\Event\TransportWebhookEvent;
+use Mautic\EmailBundle\Model\TransportCallback;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\SparkpostBundle\EventSubscriber\CallbackSubscriber;
@@ -233,7 +235,7 @@ JSON;
 
         $dispatcher = new EventDispatcher();
 
-        $transportCallback = $this->createMock(TransportCallback::class);
+        $transportCallback = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
         $subscriber        = new CallbackSubscriber(
             $transportCallback,
             new \Mautic\CoreBundle\Helper\CoreParametersHelper()
