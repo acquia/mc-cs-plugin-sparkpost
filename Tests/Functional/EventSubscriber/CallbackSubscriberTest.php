@@ -229,7 +229,6 @@ JSON;
         $request = new Request([], json_decode($payload, true));
         $event = new TransportWebhookEvent($request);
 
-        // Create the event dispatcher and subscriber
         $dispatcher = new EventDispatcher();
 
         $transportCallback = new \Mautic\EmailBundle\Model\TransportCallback();
@@ -238,10 +237,8 @@ JSON;
             new \Mautic\CoreBundle\Helper\CoreParametersHelper()
         );
 
-        // Add the subscriber to the dispatcher
         $dispatcher->addSubscriber($subscriber);
 
-        // Dispatch the event
         $dispatcher->dispatch($event, EmailEvents::ON_TRANSPORT_WEBHOOK);
 
         $this->transportCallback->expects($this->never())
