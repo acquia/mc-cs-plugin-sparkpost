@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Tests\Functional\EventSubscriber;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
 use Mautic\EmailBundle\EmailEvents;
@@ -235,10 +236,11 @@ JSON;
 
         $dispatcher = new EventDispatcher();
 
-        $transportCallback = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
-        $subscriber        = new CallbackSubscriber(
+        $transportCallback    = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
+        $coreParametersHelper = $this->getMockBuilder(CoreParametersHelper::class)->disableOriginalConstructor()->getMock();
+        $subscriber           = new CallbackSubscriber(
             $transportCallback,
-            new \Mautic\CoreBundle\Helper\CoreParametersHelper()
+            $coreParametersHelper
         );
 
         $dispatcher->addSubscriber($subscriber);
