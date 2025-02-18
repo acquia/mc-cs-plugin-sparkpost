@@ -21,10 +21,6 @@ class SparkpostTransportTest extends MauticMysqlTestCase
 
     protected function setUp(): void
     {
-        $this->markTestSkipped('Failing on CI. To be fixed in a separate PR.');
-
-        return;
-
         $this->configParams['mailer_dsn']            = 'mautic+sparkpost+api://:some_api@some_host:25?region=us';
         $this->configParams['messenger_dsn_email']   = 'sync://';
         $this->configParams['mailer_custom_headers'] = ['x-global-custom-header' => 'value123'];
@@ -32,6 +28,8 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->configParams['mailer_from_name']      = 'Admin';
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
+
+        $this->markTestSkipped('Failing on CI. To be fixed in a separate PR.');
     }
 
     public function testEmailSendToContactSync(): void
