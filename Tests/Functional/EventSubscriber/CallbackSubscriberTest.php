@@ -227,12 +227,12 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
 ] 
 JSON;
         $request = new Request([], json_decode($payload, true));
-        $event = new TransportWebhookEvent($request);
+        $event   = new TransportWebhookEvent($request);
 
         $dispatcher = new EventDispatcher();
 
         $transportCallback = new \Mautic\EmailBundle\Model\TransportCallback();
-        $subscriber = new CallbackSubscriber(
+        $subscriber        = new CallbackSubscriber(
             $transportCallback,
             new \Mautic\CoreBundle\Helper\CoreParametersHelper()
         );
