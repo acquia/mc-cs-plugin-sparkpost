@@ -22,6 +22,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
     protected function setUp(): void
     {
         $this->markTestSkipped('Failing on CI. To be fixed in a separate PR.');
+
         return;
 
         $this->configParams['mailer_dsn']            = 'mautic+sparkpost+api://:some_api@some_host:25?region=us';
