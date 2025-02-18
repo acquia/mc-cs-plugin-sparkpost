@@ -238,6 +238,11 @@ JSON;
 
         $transportCallback    = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
         $coreParametersHelper = $this->getMockBuilder(CoreParametersHelper::class)->disableOriginalConstructor()->getMock();
+
+        $coreParametersHelper->method('get')
+            ->with('mailer_dsn')
+            ->willReturn('mautic+sparkpost+api://:some_api@some_host:25?region=us');
+
         $subscriber           = new CallbackSubscriber(
             $transportCallback,
             $coreParametersHelper
