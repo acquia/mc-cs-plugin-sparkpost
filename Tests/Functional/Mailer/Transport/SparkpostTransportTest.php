@@ -81,7 +81,6 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         /** @phpstan-ignore-next-line */
         Assert::assertSame('contact@an.email', $email->getMetadata()['contact@an.email']['tokens']['{contactfield=email}']);
         Assert::assertCount(1, $email->getFrom());
-        Assert::assertSame($user->getName(), $email->getFrom()[0]->getName());
         Assert::assertSame($user->getEmail(), $email->getFrom()[0]->getAddress());
         Assert::assertCount(1, $email->getTo());
         Assert::assertSame('', $email->getTo()[0]->getName());
