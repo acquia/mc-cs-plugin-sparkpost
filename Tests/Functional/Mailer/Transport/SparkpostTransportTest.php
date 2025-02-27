@@ -28,8 +28,6 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->configParams['mailer_from_name']      = 'Admin';
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
-
-        $this->markTestSkipped('Failing on CI. To be fixed in a separate PR.');
     }
 
     public function testEmailSendToContactSync(): void
