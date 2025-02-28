@@ -53,11 +53,18 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $mockHttpClient = self::getContainer()->get(HttpClientInterface::class);
         $mockHttpClient->setResponseFactory($expectedResponses);
 
+        $userHelper = static::getContainer()->get(UserHelper::class);
+        $user       = $userHelper->getUser();
+
         $contact = $this->createContact('contact@an.email');
         $this->em->flush();
 
         $this->client->request(Request::METHOD_GET, "/s/contacts/email/{$contact->getId()}");
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->assertResponseIsSuccessful();
+
+        // User's email address should be pre-filled in the form.
+        Assert::assertStringContainsString($user->getEmail(), $this->client->getResponse()->getContent());
+
         $newContent = json_decode($this->client->getResponse()->getContent(), true)['newContent'];
         $crawler    = new Crawler($newContent, $this->client->getInternalRequest()->getUri());
         $form       = $crawler->selectButton('Send')->form();
@@ -68,12 +75,10 @@ class SparkpostTransportTest extends MauticMysqlTestCase
             ]
         );
         $this->client->submit($form);
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->assertResponseIsSuccessful();
         self::assertQueuedEmailCount(1);
 
-        $email      = self::getMailerMessage();
-        $userHelper = static::getContainer()->get(UserHelper::class);
-        $user       = $userHelper->getUser();
+        $email = self::getMailerMessage();
 
         Assert::assertSame('Hello there!', $email->getSubject());
         Assert::assertStringContainsString('This is test body for {contactfield=email}!', $email->getHtmlBody());
@@ -81,6 +86,8 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         /** @phpstan-ignore-next-line */
         Assert::assertSame('contact@an.email', $email->getMetadata()['contact@an.email']['tokens']['{contactfield=email}']);
         Assert::assertCount(1, $email->getFrom());
+        Assert::assertSame($user->getName(), $email->getFrom()[0]->getName());
+        Assert::assertSame($user->getEmail(), $email->getFrom()[0]->getAddress());
         Assert::assertCount(1, $email->getTo());
         Assert::assertSame('', $email->getTo()[0]->getName());
         Assert::assertSame($contact->getEmail(), $email->getTo()[0]->getAddress());
