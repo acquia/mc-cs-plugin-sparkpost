@@ -26,7 +26,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->configParams['mailer_custom_headers']      = ['x-global-custom-header' => 'value123'];
         $this->configParams['mailer_from_email']          = 'admin@mautic.test';
         $this->configParams['mailer_from_name']           = 'Admin';
-        $this->configParams['sparkpost_tracking_enabled'] = $this->getName() === 'testEmailSendToContactSync' ? $this->getProvidedData()[0] : false;
+        $this->configParams['sparkpost_tracking_enabled'] = 'testEmailSendToContactSync' === $this->getName() ? $this->getProvidedData()[0] : false;
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
     }
