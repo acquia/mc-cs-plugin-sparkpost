@@ -6,7 +6,10 @@ namespace MauticPlugin\SparkpostBundle\Tests\Functional\Mailer\Transport;
 
 use Mautic\CoreBundle\Helper\UserHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
+use Mautic\EmailBundle\Entity\Email;
 use Mautic\LeadBundle\Entity\Lead;
+use Mautic\LeadBundle\Entity\LeadList;
+use Mautic\LeadBundle\Entity\ListLead;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -95,6 +98,216 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         Assert::assertSame('', $email->getReplyTo()[0]->getName());
     }
 
+    public function testSegmentEmailSendToCoupleOfContactSync(): void
+    {
+        $segment = new LeadList();
+        $segment->setName('Test Segment');
+        $segment->setPublicName('Test Segment');
+        $segment->setAlias('test-segment');
+
+        $email = new Email();
+        $email->setName('Test Email');
+        $email->setSubject('Hello there!');
+        $email->setEmailType('list');
+        $email->setLists([$segment]);
+        $email->setCustomHtml('<html><body>Hello {contactfield=email}!</br>{unsubscribe_text}</body></html>');
+
+        $this->em->persist($segment);
+        $this->em->persist($email);
+        $this->em->flush();
+
+        $email->setPlainText('Dear {contactfield=email}');
+        $email->setFromAddress('custom@from.address');
+        $email->setFromName('Custom From Name');
+        $email->setReplyToAddress('custom@replyto.address');
+        $email->setBccAddress('custom@bcc.email');
+        $email->setHeaders(['x-global-custom-header' => 'value123 overridden']);
+        $email->setUtmTags(
+            [
+                'utmSource'   => 'utmSourceA',
+                'utmMedium'   => 'utmMediumA',
+                'utmCampaign' => 'utmCampaignA',
+                'utmContent'  => 'utmContentA',
+            ]
+        );
+
+        foreach (['contact@one.email', 'contact@two.email'] as $emailAddress) {
+            $contact = new Lead();
+            $contact->setEmail($emailAddress);
+
+            $member = new ListLead();
+            $member->setLead($contact);
+            $member->setList($segment);
+            $member->setDateAdded(new \DateTime());
+
+            $this->em->persist($member);
+            $this->em->persist($contact);
+        }
+
+        $this->em->persist($segment);
+        $this->em->persist($email);
+        $this->em->flush();
+
+        $assertRecipient = function (array $recipient, string $contactAddressWithoutDotPart, string $recipientAddressWithoutDotPart, Email $email): void {
+            // Address
+            $this->assertSame($recipientAddressWithoutDotPart.'.email', $recipient['address']['email']);
+
+            if ($contactAddressWithoutDotPart === $recipientAddressWithoutDotPart) {
+                // This is for the contact
+                $this->assertSame('', $recipient['address']['name']);
+
+                // Metadata
+                $this->assertSame(' ', $recipient['metadata']['name']);
+                $this->assertMatchesRegularExpression('/\d+/', $recipient['metadata']['leadId']);
+                $this->assertSame($email->getId(), $recipient['metadata']['emailId']);
+                $this->assertSame('Test Email', $recipient['metadata']['emailName']);
+                $this->assertMatchesRegularExpression('/[a-f0-9]{20,40}/', $recipient['metadata']['hashId']);
+                $this->assertTrue($recipient['metadata']['hashIdState']);
+                $this->assertSame(['email', $email->getId()], $recipient['metadata']['source']);
+                $this->assertSame('utmSourceA', $recipient['metadata']['utmTags']['utmSource']);
+                $this->assertSame('utmMediumA', $recipient['metadata']['utmTags']['utmMedium']);
+                $this->assertSame('utmCampaignA', $recipient['metadata']['utmTags']['utmCampaign']);
+                $this->assertSame('utmContentA', $recipient['metadata']['utmTags']['utmContent']);
+            } else {
+                // This is for the BCC
+                $this->assertSame($contactAddressWithoutDotPart.'.email', $recipient['header_to']);
+            }
+
+            // Substitution Data
+            $this->assertSame('Default Dynamic Content', $recipient['substitution_data']['DYNAMICCONTENTDYNAMICCONTENT1']);
+            $this->assertMatchesRegularExpression(
+                '/https:\/\/localhost\/email\/unsubscribe\/[a-f0-9]{20,40}\/'.$contactAddressWithoutDotPart.'\.email\/[a-f0-9]*/',
+                $recipient['substitution_data']['LISTUNSUBSCRIBEHEADER']
+            );
+
+            $this->assertMatchesRegularExpression(
+                '/<a href="https:\/\/localhost\/email\/unsubscribe\/[a-f0-9]{20,40}\/'.$contactAddressWithoutDotPart.'\.email\/[a-f0-9]*">Unsubscribe<\/a> to no longer receive emails from us./',
+                $recipient['substitution_data']['UNSUBSCRIBETEXT']
+            );
+            $this->assertMatchesRegularExpression(
+                '/https:\/\/localhost\/email\/unsubscribe\/[a-f0-9]{20,40}\/'.$contactAddressWithoutDotPart.'\.email\/[a-f0-9]*/',
+                $recipient['substitution_data']['UNSUBSCRIBEURL']
+            );
+            $this->assertMatchesRegularExpression(
+                '/<a href="https:\/\/localhost\/email\/view\/[a-f0-9]{20,40}">Having trouble reading this email\? Click here.<\/a>/',
+                $recipient['substitution_data']['WEBVIEWTEXT']
+            );
+            $this->assertMatchesRegularExpression(
+                '/https:\/\/localhost\/email\/view\/[a-f0-9]{20,40}/',
+                $recipient['substitution_data']['WEBVIEWURL']
+            );
+            $this->assertSame('', $recipient['substitution_data']['SIGNATURE']);
+            $this->assertSame('Hello there!', $recipient['substitution_data']['SUBJECT']);
+            $this->assertSame($contactAddressWithoutDotPart.'.email', $recipient['substitution_data']['CONTACTFIELDEMAIL']);
+            $this->assertSame('', $recipient['substitution_data']['OWNERFIELDEMAIL']);
+            $this->assertSame('', $recipient['substitution_data']['OWNERFIELDFIRSTNAME']);
+            $this->assertSame('', $recipient['substitution_data']['OWNERFIELDLASTNAME']);
+            $this->assertSame('', $recipient['substitution_data']['OWNERFIELDPOSITION']);
+            $this->assertSame('', $recipient['substitution_data']['OWNERFIELDSIGNATURE']);
+            $this->assertMatchesRegularExpression('/https:\/\/localhost\/email\/[a-f0-9]{20,40}\.gif/', $recipient['substitution_data']['TRACKINGPIXEL']);
+        };
+
+        $expectedResponses = [
+            function ($method, $url, $options): MockResponse {
+                Assert::assertSame(Request::METHOD_POST, $method);
+                Assert::assertSame('https://api.sparkpost.com/api/v1/utils/content-previewer/', $url);
+                $jsonArray = json_decode($options['body'], true);
+
+                // Content
+                $this->assertSame('Admin <admin@mautic.test>', $jsonArray['content']['from']);
+                $this->assertSame('Hello there!', $jsonArray['content']['subject']);
+                $this->assertSame('value123', $jsonArray['content']['headers']['x-global-custom-header']);
+                $this->assertSame('Bulk', $jsonArray['content']['headers']['Precedence']);
+                $this->assertMatchesRegularExpression('/\d+/', $jsonArray['content']['headers']['X-EMAIL-ID'], 'X-EMAIL-ID does not match');
+                $this->assertSame('{{{ LISTUNSUBSCRIBEHEADER }}}', $jsonArray['content']['headers']['List-Unsubscribe']);
+                $this->assertSame('List-Unsubscribe=One-Click', $jsonArray['content']['headers']['List-Unsubscribe-Post']);
+                $this->assertSame('<html lang="en"><head><title>Hello there!</title></head><body>Hello {{{ CONTACTFIELDEMAIL }}}!</br>{{{ UNSUBSCRIBETEXT }}}<img height="1" width="1" src="{{{ TRACKINGPIXEL }}}" alt="" /></body></html>', $jsonArray['content']['html']);
+                $this->assertSame('Dear {{{ CONTACTFIELDEMAIL }}}', $jsonArray['content']['text']);
+                $this->assertSame('admin@mautic.test', $jsonArray['content']['reply_to']);
+                $this->assertEmpty($jsonArray['content']['attachments']);
+
+                $this->assertNull($jsonArray['inline_css']);
+
+                // Tags
+                $this->assertEmpty($jsonArray['tags']);
+
+                // Campaign ID
+                $this->assertSame('utmCampaignA', $jsonArray['campaign_id']);
+
+                // Options
+                $this->assertFalse($jsonArray['options']['open_tracking']);
+                $this->assertFalse($jsonArray['options']['click_tracking']);
+                $this->assertFalse($jsonArray['options']['transactional']);
+                // Substitution Data
+                $this->assertSame('Default Dynamic Content', $jsonArray['substitution_data']['DYNAMICCONTENTDYNAMICCONTENT1']);
+                $this->assertMatchesRegularExpression('/<a href="https:\/\/localhost\/email\/unsubscribe\/[a-f0-9]{20,40}\/contact@(one|two)\.email\/[a-f0-9]*">Unsubscribe<\/a> to no longer receive emails from us./', $jsonArray['substitution_data']['UNSUBSCRIBETEXT'], 'UNSUBSCRIBETEXT does not match');
+                $this->assertMatchesRegularExpression('/https:\/\/localhost\/email\/unsubscribe\/[a-f0-9]{20,40}\/contact@(one|two)\.email\/[a-f0-9]*/', $jsonArray['substitution_data']['UNSUBSCRIBEURL'], 'UNSUBSCRIBEURL does not match');
+                $this->assertMatchesRegularExpression('/<a href="https:\/\/localhost\/email\/view\/[a-f0-9]{20,40}">Having trouble reading this email\? Click here\.<\/a>/', $jsonArray['substitution_data']['WEBVIEWTEXT'], 'WEBVIEWTEXT does not match');
+                $this->assertMatchesRegularExpression('/https:\/\/localhost\/email\/view\/[a-f0-9]*/', $jsonArray['substitution_data']['WEBVIEWURL'], 'WEBVIEWURL does not match');
+                $this->assertSame('', $jsonArray['substitution_data']['SIGNATURE']);
+                $this->assertSame('Hello there!', $jsonArray['substitution_data']['SUBJECT']);
+                $this->assertMatchesRegularExpression('/contact@(one|two)\.email/', $jsonArray['substitution_data']['CONTACTFIELDEMAIL'], 'CONTACTFIELDEMAIL does not match');
+                $this->assertSame('', $jsonArray['substitution_data']['OWNERFIELDEMAIL']);
+                $this->assertSame('', $jsonArray['substitution_data']['OWNERFIELDFIRSTNAME']);
+                $this->assertSame('', $jsonArray['substitution_data']['OWNERFIELDLASTNAME']);
+                $this->assertSame('', $jsonArray['substitution_data']['OWNERFIELDPOSITION']);
+                $this->assertSame('', $jsonArray['substitution_data']['OWNERFIELDSIGNATURE']);
+                $this->assertMatchesRegularExpression('/https:\/\/localhost\/email\/[a-f0-9]*\.gif/', $jsonArray['substitution_data']['TRACKINGPIXEL'], 'TRACKINGPIXEL does not match');
+
+                return new MockResponse('{"results": {"subject": "Hello there!", "html": "This is test body for {contactfield=email}!"}}');
+            },
+            function ($method, $url, $options) use ($assertRecipient, $email): MockResponse {
+                Assert::assertSame(Request::METHOD_POST, $method);
+                Assert::assertSame('https://api.sparkpost.com/api/v1/transmissions/', $url);
+                $jsonArray = json_decode($options['body'], true);
+                $this->assertSame('Admin <admin@mautic.test>', $jsonArray['content']['from']);
+                $this->assertSame('Hello there!', $jsonArray['content']['subject']);
+                $this->assertSame('value123', $jsonArray['content']['headers']['x-global-custom-header']);
+                $this->assertSame('Bulk', $jsonArray['content']['headers']['Precedence']);
+                $this->assertMatchesRegularExpression('/\d+/', $jsonArray['content']['headers']['X-EMAIL-ID']);
+                $this->assertSame('{{{ LISTUNSUBSCRIBEHEADER }}}', $jsonArray['content']['headers']['List-Unsubscribe']);
+                $this->assertSame('List-Unsubscribe=One-Click', $jsonArray['content']['headers']['List-Unsubscribe-Post']);
+                $this->assertSame('<html lang="en"><head><title>Hello there!</title></head><body>Hello {{{ CONTACTFIELDEMAIL }}}!</br>{{{ UNSUBSCRIBETEXT }}}<img height="1" width="1" src="{{{ TRACKINGPIXEL }}}" alt="" /></body></html>', $jsonArray['content']['html']);
+                $this->assertSame('Dear {{{ CONTACTFIELDEMAIL }}}', $jsonArray['content']['text']);
+                $this->assertSame('admin@mautic.test', $jsonArray['content']['reply_to']);
+                $this->assertEmpty($jsonArray['content']['attachments']);
+
+                // Recipients
+                $this->assertCount(4, $jsonArray['recipients']);
+
+                // Sort recipients by recipient email address and then by contact email address
+                usort($jsonArray['recipients'], function ($a, $b) {
+                    $emailComparison = strcmp($a['substitution_data']['CONTACTFIELDEMAIL'], $b['substitution_data']['CONTACTFIELDEMAIL']);
+                    if (0 === $emailComparison) {
+                        return strcmp($a['address']['email'], $b['address']['email']);
+                    }
+
+                    return $emailComparison;
+                });
+
+                $assertRecipient($jsonArray['recipients'][0], 'contact@one', 'contact@one', $email);
+                $assertRecipient($jsonArray['recipients'][1], 'contact@one', 'custom@bcc', $email);
+                $assertRecipient($jsonArray['recipients'][2], 'contact@two', 'contact@two', $email);
+                $assertRecipient($jsonArray['recipients'][3], 'contact@two', 'custom@bcc', $email);
+
+                return new MockResponse('{"results": {"total_rejected_recipients": 0, "total_accepted_recipients": 1, "id": "11668787484950529"}}');
+            },
+        ];
+
+        /** @var MockHttpClient $mockHttpClient */
+        $mockHttpClient = self::getContainer()->get(HttpClientInterface::class);
+        $mockHttpClient->setResponseFactory($expectedResponses);
+
+        $this->client->request(Request::METHOD_POST, '/s/ajax?action=email:sendBatch', [
+            'id'         => $email->getId(),
+            'pending'    => 2,
+            'batchLimit' => 10,
+        ]);
+
+        $this->assertTrue($this->client->getResponse()->isOk(), $this->client->getResponse()->getContent());
+        $this->assertSame('{"success":1,"percent":100,"progress":[2,2],"stats":{"sent":2,"failed":0,"failedRecipients":[]}}', $this->client->getResponse()->getContent());
+    }
+
     public function testTestTransportButton(): void
     {
         $expectedResponses = [
@@ -141,7 +354,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         Assert::assertSame('admin@mautic.test', $bodyArray['content']['reply_to']);
         Assert::assertSame('Hello there!', $bodyArray['content']['subject']);
         Assert::assertSame('This is test body for {{{ CONTACTFIELDEMAIL }}}!', $bodyArray['content']['text']);
-        Assert::assertSame(['open_tracking' => false, 'click_tracking' => false], $bodyArray['options']);
+        Assert::assertSame(['open_tracking' => false, 'click_tracking' => false, 'transactional' => true], $bodyArray['options']);
         Assert::assertSame('contact@an.email', $bodyArray['substitution_data']['CONTACTFIELDEMAIL']);
         Assert::assertSame('Hello there!', $bodyArray['substitution_data']['SUBJECT']);
         Assert::assertArrayHasKey('SIGNATURE', $bodyArray['substitution_data']);

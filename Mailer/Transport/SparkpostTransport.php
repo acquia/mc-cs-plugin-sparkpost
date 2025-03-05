@@ -74,7 +74,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
      * @throws DecodingExceptionInterface
      * @throws RedirectionExceptionInterface
      * @throws ServerExceptionInterface
-     * @throws TransportExceptionInterface
+     * @throws TransportException
      */
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
     {
@@ -92,8 +92,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             }
 
             return $response;
-        } catch (\Exception $e) {
-            throw new TransportException($e->getMessage());
+        } catch (TransportExceptionInterface $e) {
+            throw new TransportException($e->getMessage(), 0, $e);
         }
     }
 
@@ -144,6 +144,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             'options'     => [
                 'open_tracking'  => false,
                 'click_tracking' => false,
+                'transactional'  => !$email->getHeaders()->get('List-Unsubscribe-Post'),
             ],
         ];
     }
@@ -182,6 +183,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
                 $result[$header->getName()] = $header->getBody();
             }
         }
+
+        $result['List-Unsubscribe'] = '{{{ LISTUNSUBSCRIBEHEADER }}}';
 
         return $result;
     }
