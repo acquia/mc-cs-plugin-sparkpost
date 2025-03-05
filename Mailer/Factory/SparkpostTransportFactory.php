@@ -23,7 +23,7 @@ class SparkpostTransportFactory extends AbstractTransportFactory
         private TranslatorInterface $translator,
         EventDispatcherInterface $eventDispatcher,
         HttpClientInterface $client = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
     ) {
         parent::__construct($eventDispatcher, $client, $logger);
     }

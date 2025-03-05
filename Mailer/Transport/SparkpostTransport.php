@@ -58,7 +58,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
         private TransportCallback $callback,
         HttpClientInterface $client = null,
         EventDispatcherInterface $dispatcher = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
     ) {
         parent::__construct($client, $dispatcher, $logger);
         $this->host = self::SPARK_POST_HOSTS[$region] ?? self::SPARK_POST_HOSTS['us'];
@@ -367,7 +367,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
     private function getSparkpostResponse(
         string $endpoint,
         array $payload,
-        string $method = Request::METHOD_POST
+        string $method = Request::METHOD_POST,
     ): ResponseInterface {
         return $this->client->request(
             $method,
