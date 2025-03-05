@@ -21,29 +21,33 @@ class SparkpostTransportTest extends MauticMysqlTestCase
 
     protected function setUp(): void
     {
-        $this->configParams['mailer_dsn']            = 'mautic+sparkpost+api://:some_api@some_host:25?region=us';
-        $this->configParams['messenger_dsn_email']   = 'sync://';
-        $this->configParams['mailer_custom_headers'] = ['x-global-custom-header' => 'value123'];
-        $this->configParams['mailer_from_email']     = 'admin@mautic.test';
-        $this->configParams['mailer_from_name']      = 'Admin';
+        $this->configParams['mailer_dsn']                 = 'mautic+sparkpost+api://:some_api@some_host:25?region=us';
+        $this->configParams['messenger_dsn_email']        = 'sync://';
+        $this->configParams['mailer_custom_headers']      = ['x-global-custom-header' => 'value123'];
+        $this->configParams['mailer_from_email']          = 'admin@mautic.test';
+        $this->configParams['mailer_from_name']           = 'Admin';
+        $this->configParams['sparkpost_tracking_enabled'] = $this->getName() === 'testEmailSendToContactSync' ? $this->getProvidedData()[0] : false;
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
     }
 
-    public function testEmailSendToContactSync(): void
+    /**
+     * @dataProvider provideTrackingConfig
+     */
+    public function testEmailSendToContactSync(bool $expectedTrackingConfig): void
     {
         $expectedResponses = [
-            function ($method, $url, $options): MockResponse {
+            function ($method, $url, $options) use ($expectedTrackingConfig): MockResponse {
                 Assert::assertSame(Request::METHOD_POST, $method);
                 Assert::assertSame('https://api.sparkpost.com/api/v1/utils/content-previewer/', $url);
-                $this->assertSparkpostRequestBody($options['body']);
+                $this->assertSparkpostRequestBody($options['body'], $expectedTrackingConfig);
 
                 return new MockResponse('{"results": {"subject": "Hello there!", "html": "This is test body for {contactfield=email}!"}}');
             },
-            function ($method, $url, $options): MockResponse {
+            function ($method, $url, $options) use ($expectedTrackingConfig): MockResponse {
                 Assert::assertSame(Request::METHOD_POST, $method);
                 Assert::assertSame('https://api.sparkpost.com/api/v1/transmissions/', $url);
-                $this->assertSparkpostRequestBody($options['body']);
+                $this->assertSparkpostRequestBody($options['body'], $expectedTrackingConfig);
 
                 return new MockResponse('{"results": {"total_rejected_recipients": 0, "total_accepted_recipients": 1, "id": "11668787484950529"}}');
             },
@@ -90,6 +94,15 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         Assert::assertSame('', $email->getReplyTo()[0]->getName());
     }
 
+    /**
+     * @return array<string, bool[]>
+     */
+    public function provideTrackingConfig(): iterable
+    {
+        yield 'sparkpost_tracking_enabled is TRUE' => [true];
+        yield 'sparkpost_tracking_enabled is FALSE' => [false];
+    }
+
     public function testTestTransportButton(): void
     {
         $expectedResponses = [
@@ -127,7 +140,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         Assert::assertSame('Hi! This is a test email from Mautic. Testing...testing...1...2...3!', $bodyArray['content']['text']);
     }
 
-    private function assertSparkpostRequestBody(string $body): void
+    private function assertSparkpostRequestBody(string $body, bool $expectedTrackingConfig): void
     {
         $bodyArray = json_decode($body, true);
         Assert::assertSame('Admin User <admin@yoursite.com>', $bodyArray['content']['from']);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Mailer\Factory;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Model\TransportCallback;
 use MauticPlugin\SparkpostBundle\Mailer\Transport\SparkpostTransport;
 use Psr\Log\LoggerInterface;
@@ -21,9 +22,10 @@ class SparkpostTransportFactory extends AbstractTransportFactory
     public function __construct(
         private TransportCallback $transportCallback,
         private TranslatorInterface $translator,
+        private CoreParametersHelper $coreParametersHelper,
         EventDispatcherInterface $eventDispatcher,
         HttpClientInterface $client = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
     ) {
         parent::__construct($eventDispatcher, $client, $logger);
     }
@@ -51,9 +53,10 @@ class SparkpostTransportFactory extends AbstractTransportFactory
                 $this->getPassword($dsn),
                 $region,
                 $this->transportCallback,
+                $this->coreParametersHelper,
                 $this->client,
                 $this->dispatcher,
-                $this->logger
+                $this->logger,
             );
         }
 

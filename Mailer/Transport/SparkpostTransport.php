@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Mailer\Transport;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Helper\MailHelper;
 use Mautic\EmailBundle\Mailer\Message\MauticMessage;
 use Mautic\EmailBundle\Mailer\Transport\TokenTransportInterface;
@@ -56,9 +57,10 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
         private string $apiKey,
         string $region,
         private TransportCallback $callback,
+        private CoreParametersHelper $coreParametersHelper,
         HttpClientInterface $client = null,
         EventDispatcherInterface $dispatcher = null,
-        LoggerInterface $logger = null
+        LoggerInterface $logger = null,
     ) {
         parent::__construct($client, $dispatcher, $logger);
         $this->host = self::SPARK_POST_HOSTS[$region] ?? self::SPARK_POST_HOSTS['us'];
@@ -131,6 +133,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             }
         }
 
+        $trackingEnabled = (bool) $this->coreParametersHelper->get('sparkpost_tracking_enabled', false);
+
         return [
             'content'     => $this->buildContent($email),
             'recipients'  => $this->buildRecipients($email, $metadata, $mergeVars),
@@ -142,8 +146,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
                 : [],
             'campaign_id' => $this->getCampaignId($metadata, $metadataSet),
             'options'     => [
-                'open_tracking'  => false,
-                'click_tracking' => false,
+                'open_tracking'  => $trackingEnabled,
+                'click_tracking' => $trackingEnabled,
             ],
         ];
     }
@@ -367,7 +371,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
     private function getSparkpostResponse(
         string $endpoint,
         array $payload,
-        string $method = Request::METHOD_POST
+        string $method = Request::METHOD_POST,
     ): ResponseInterface {
         return $this->client->request(
             $method,

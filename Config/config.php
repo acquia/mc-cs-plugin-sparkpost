@@ -7,4 +7,7 @@ return [
     'description' => 'Sparkpost Mailer Plugin for Mautic',
     'version'     => '1.0.0',
     'author'      => 'Acquia',
+    'parameters'  => [
+        'sparkpost_tracking_enabled' => false,
+    ],
 ];
