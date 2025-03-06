@@ -36,7 +36,6 @@ class SparkpostTransportTest extends MauticMysqlTestCase
      */
     public function testEmailSendToContactSync(bool $expectedTrackingConfig): void
     {
-        $this->client->catchExceptions(false);
         $expectedResponses = [
             function ($method, $url, $options) use ($expectedTrackingConfig): MockResponse {
                 Assert::assertSame(Request::METHOD_POST, $method);
