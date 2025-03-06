@@ -62,11 +62,18 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $mockHttpClient = self::getContainer()->get(HttpClientInterface::class);
         $mockHttpClient->setResponseFactory($expectedResponses);
 
+        $userHelper = static::getContainer()->get(UserHelper::class);
+        $user       = $userHelper->getUser();
+
         $contact = $this->createContact('contact@an.email');
         $this->em->flush();
 
         $this->client->request(Request::METHOD_GET, "/s/contacts/email/{$contact->getId()}");
         $this->assertResponseIsSuccessful();
+
+        // User's email address should be pre-filled in the form.
+        Assert::assertStringContainsString($user->getEmail(), $this->client->getResponse()->getContent());
+
         $newContent = json_decode($this->client->getResponse()->getContent(), true)['newContent'];
         $crawler    = new Crawler($newContent, $this->client->getInternalRequest()->getUri());
         $form       = $crawler->selectButton('Send')->form();
@@ -80,9 +87,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->assertResponseIsSuccessful();
         self::assertQueuedEmailCount(1);
 
-        $email      = self::getMailerMessage();
-        $userHelper = static::getContainer()->get(UserHelper::class);
-        $user       = $userHelper->getUser();
+        $email = self::getMailerMessage();
 
         Assert::assertSame('Hello there!', $email->getSubject());
         Assert::assertStringContainsString('This is test body for {contactfield=email}!', $email->getHtmlBody());

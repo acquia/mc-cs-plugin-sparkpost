@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Tests\Functional\EventSubscriber;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\CoreBundle\Helper\DateTimeHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
+use Mautic\EmailBundle\EmailEvents;
 use Mautic\EmailBundle\Entity\Stat;
+use Mautic\EmailBundle\Event\TransportWebhookEvent;
+use Mautic\EmailBundle\Model\TransportCallback;
 use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\Entity\Lead;
+use MauticPlugin\SparkpostBundle\EventSubscriber\CallbackSubscriber;
 use PHPUnit\Framework\Assert;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 
 class CallbackSubscriberTest extends MauticMysqlTestCase
@@ -197,5 +203,56 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
                 'reason'   => '',
             ],
         };
+    }
+
+    /**
+     * For the message with 'type': 'out of band' and 'bounce class': 60 should never be called transportCallback.
+     */
+    public function testProcessCallbackRequestWhenSoftBounce(): void
+    {
+        $payload = <<<JSON
+[
+    {
+      "msys": {
+        "message_event": {
+            "reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
+            "msg_from":"msprvs1=18290qww0ygol=bounces-44585-172@bounces.mauticsparkt3.com",
+            "event_id":"13251575597141532",
+            "raw_reason":"550 [internal] [oob] The message is an auto-reply/vacation mail.",
+            "error_code":"550",
+            "subaccount_id":172,
+            "delv_method":"esmtp",
+            "customer_id":44585,
+            "type":"out_of_band",
+            "bounce_class":"60",
+            "timestamp":"2020-01-22T21:59:32.000Z"
+        }
+      }
+    }
+] 
+JSON;
+        $request = new Request([], json_decode($payload, true));
+        $event   = new TransportWebhookEvent($request);
+
+        $dispatcher = new EventDispatcher();
+
+        $transportCallback    = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
+        $coreParametersHelper = $this->getMockBuilder(CoreParametersHelper::class)->disableOriginalConstructor()->getMock();
+
+        $coreParametersHelper->method('get')
+            ->with('mailer_dsn')
+            ->willReturn('mautic+sparkpost+api://:some_api@some_host:25?region=us');
+
+        $subscriber           = new CallbackSubscriber(
+            $transportCallback,
+            $coreParametersHelper
+        );
+
+        $dispatcher->addSubscriber($subscriber);
+
+        $dispatcher->dispatch($event, EmailEvents::ON_TRANSPORT_WEBHOOK);
+
+        $transportCallback->expects($this->never())
+            ->method($this->anything());
     }
 }
