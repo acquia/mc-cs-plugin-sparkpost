@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Tests\Unit\Mailer\Factory;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Model\TransportCallback;
 use MauticPlugin\SparkpostBundle\Mailer\Factory\SparkpostTransportFactory;
 use MauticPlugin\SparkpostBundle\Mailer\Transport\SparkpostTransport;
@@ -22,19 +23,29 @@ class SparkpostTransportFactoryTest extends TestCase
 {
     private SparkpostTransportFactory $sparkpostTransportFactory;
 
-    private TranslatorInterface|MockObject $translatorMock;
+    /**
+     * @var TranslatorInterface&MockObject
+     */
+    private MockObject $translatorMock;
+
+    /**
+     * @var CoreParametersHelper&MockObject
+     */
+    private MockObject $coreParametersHelper;
 
     protected function setUp(): void
     {
-        $eventDispatcherMock   = $this->createMock(EventDispatcherInterface::class);
-        $this->translatorMock  = $this->createMock(TranslatorInterface::class);
-        $transportCallbackMock = $this->createMock(TransportCallback::class);
-        $httpClientMock        = $this->createMock(HttpClientInterface::class);
-        $loggerMock            = $this->createMock(LoggerInterface::class);
+        $eventDispatcherMock        = $this->createMock(EventDispatcherInterface::class);
+        $this->translatorMock       = $this->createMock(TranslatorInterface::class);
+        $transportCallbackMock      = $this->createMock(TransportCallback::class);
+        $this->coreParametersHelper = $this->createMock(CoreParametersHelper::class);
+        $httpClientMock             = $this->createMock(HttpClientInterface::class);
+        $loggerMock                 = $this->createMock(LoggerInterface::class);
 
         $this->sparkpostTransportFactory = new SparkpostTransportFactory(
             $transportCallbackMock,
             $this->translatorMock,
+            $this->coreParametersHelper,
             $eventDispatcherMock,
             $httpClientMock,
             $loggerMock

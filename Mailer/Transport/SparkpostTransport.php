@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Mailer\Transport;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Helper\MailHelper;
 use Mautic\EmailBundle\Mailer\Message\MauticMessage;
 use Mautic\EmailBundle\Mailer\Transport\TokenTransportInterface;
@@ -23,7 +24,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\Header\ParameterizedHeader;
 use Symfony\Component\Mime\Header\UnstructuredHeader;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -56,6 +57,7 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
         private string $apiKey,
         string $region,
         private TransportCallback $callback,
+        private CoreParametersHelper $coreParametersHelper,
         HttpClientInterface $client = null,
         EventDispatcherInterface $dispatcher = null,
         LoggerInterface $logger = null,
@@ -70,10 +72,6 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
     }
 
     /**
-     * @throws ClientExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
      * @throws TransportExceptionInterface
      */
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
@@ -92,8 +90,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             }
 
             return $response;
-        } catch (\Exception $e) {
-            throw new TransportException($e->getMessage());
+        } catch (ExceptionInterface $e) {
+            throw new TransportException($e->getMessage(), 0, $e);
         }
     }
 
@@ -131,6 +129,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             }
         }
 
+        $trackingEnabled = (bool) $this->coreParametersHelper->get('sparkpost_tracking_enabled', false);
+
         return [
             'content'     => $this->buildContent($email),
             'recipients'  => $this->buildRecipients($email, $metadata, $mergeVars),
@@ -142,8 +142,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
                 : [],
             'campaign_id' => $this->getCampaignId($metadata, $metadataSet),
             'options'     => [
-                'open_tracking'  => false,
-                'click_tracking' => false,
+                'open_tracking'  => $trackingEnabled,
+                'click_tracking' => $trackingEnabled,
             ],
         ];
     }

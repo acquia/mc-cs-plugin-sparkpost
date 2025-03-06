@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Tests\Unit\Mailer\Transport;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Mailer\Message\MauticMessage;
 use Mautic\EmailBundle\Model\TransportCallback;
 use MauticPlugin\SparkpostBundle\Mailer\Transport\SparkpostTransport;
@@ -27,6 +28,7 @@ class SparkpostTransportMessageTest extends TestCase
 
         $transportCallbackMock = $this->createMock(TransportCallback::class);
         $httpClientMock        = $this->createMock(HttpClientInterface::class);
+        $coreParametersHelper  = $this->createMock(CoreParametersHelper::class);
         $eventDispatcherMock   = $this->createMock(EventDispatcherInterface::class);
         $loggerMock            = $this->createMock(LoggerInterface::class);
 
@@ -34,6 +36,7 @@ class SparkpostTransportMessageTest extends TestCase
             '1234',
             'us',
             $transportCallbackMock,
+            $coreParametersHelper,
             $httpClientMock,
             $eventDispatcherMock,
             $loggerMock

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\SparkpostBundle\Tests\Unit\Mailer\Transport;
 
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Mailer\Message\MauticMessage;
 use Mautic\EmailBundle\Model\TransportCallback;
 use MauticPlugin\SparkpostBundle\Mailer\Transport\SparkpostTransport;
@@ -21,19 +22,37 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class SparkpostTransportTest extends TestCase
 {
-    private TransportCallback|MockObject $transportCallbackMock;
+    /**
+     * @var TransportCallback&MockObject
+     */
+    private MockObject $transportCallbackMock;
 
-    private HttpClientInterface|MockObject $httpClientMock;
+    /**
+     * @var CoreParametersHelper&MockObject
+     */
+    private MockObject $coreParametersHelper;
 
-    private EventDispatcherInterface|MockObject $eventDispatcherMock;
+    /**
+     * @var HttpClientInterface&MockObject
+     */
+    private MockObject $httpClientMock;
 
-    private LoggerInterface|MockObject $loggerMock;
+    /**
+     * @var EventDispatcherInterface&MockObject
+     */
+    private MockObject $eventDispatcherMock;
+
+    /**
+     * @var LoggerInterface&MockObject
+     */
+    private MockObject $loggerMock;
 
     private SparkpostTransport $transport;
 
     protected function setUp(): void
     {
         $this->transportCallbackMock = $this->createMock(TransportCallback::class);
+        $this->coreParametersHelper  = $this->createMock(CoreParametersHelper::class);
         $this->httpClientMock        = $this->createMock(HttpClientInterface::class);
         $this->eventDispatcherMock   = $this->createMock(EventDispatcherInterface::class);
         $this->loggerMock            = $this->createMock(LoggerInterface::class);
@@ -41,6 +60,7 @@ class SparkpostTransportTest extends TestCase
             'api-key',
             'some-region',
             $this->transportCallbackMock,
+            $this->coreParametersHelper,
             $this->httpClientMock,
             $this->eventDispatcherMock,
             $this->loggerMock
