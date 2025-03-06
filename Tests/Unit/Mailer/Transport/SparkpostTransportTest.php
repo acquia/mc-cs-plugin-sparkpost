@@ -22,15 +22,30 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class SparkpostTransportTest extends TestCase
 {
-    private TransportCallback|MockObject $transportCallbackMock;
+    /**
+     * @var TransportCallback&MockObject
+     */
+    private MockObject $transportCallbackMock;
 
-    private CoreParametersHelper&MockObject $coreParametersHelper;
+    /**
+     * @var CoreParametersHelper&MockObject
+     */
+    private MockObject $coreParametersHelper;
 
-    private HttpClientInterface|MockObject $httpClientMock;
+    /**
+     * @var HttpClientInterface&MockObject
+     */
+    private MockObject $httpClientMock;
 
-    private EventDispatcherInterface|MockObject $eventDispatcherMock;
+    /**
+     * @var EventDispatcherInterface&MockObject
+     */
+    private MockObject $eventDispatcherMock;
 
-    private LoggerInterface|MockObject $loggerMock;
+    /**
+     * @var LoggerInterface&MockObject
+     */
+    private MockObject $loggerMock;
 
     private SparkpostTransport $transport;
 

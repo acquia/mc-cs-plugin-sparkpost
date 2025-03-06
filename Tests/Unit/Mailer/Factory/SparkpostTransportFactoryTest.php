@@ -23,8 +23,15 @@ class SparkpostTransportFactoryTest extends TestCase
 {
     private SparkpostTransportFactory $sparkpostTransportFactory;
 
-    private TranslatorInterface&MockObject $translatorMock;
-    private CoreParametersHelper&MockObject $coreParametersHelper;
+    /**
+     * @var TranslatorInterface&MockObject
+     */
+    private MockObject $translatorMock;
+
+    /**
+     * @var CoreParametersHelper&MockObject
+     */
+    private MockObject $coreParametersHelper;
 
     protected function setUp(): void
     {
