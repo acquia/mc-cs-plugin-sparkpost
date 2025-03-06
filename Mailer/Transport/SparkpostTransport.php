@@ -24,7 +24,7 @@ use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\Header\ParameterizedHeader;
 use Symfony\Component\Mime\Header\UnstructuredHeader;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -72,10 +72,6 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
     }
 
     /**
-     * @throws ClientExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
      * @throws TransportExceptionInterface
      */
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
@@ -94,8 +90,8 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
             }
 
             return $response;
-        } catch (\Exception $e) {
-            throw new TransportException($e->getMessage());
+        } catch (ExceptionInterface $e) {
+            throw new TransportException($e->getMessage(), 0, $e);
         }
     }
 

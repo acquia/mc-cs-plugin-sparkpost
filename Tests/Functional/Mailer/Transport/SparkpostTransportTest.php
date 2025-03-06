@@ -26,7 +26,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->configParams['mailer_custom_headers']      = ['x-global-custom-header' => 'value123'];
         $this->configParams['mailer_from_email']          = 'admin@mautic.test';
         $this->configParams['mailer_from_name']           = 'Admin';
-        $this->configParams['sparkpost_tracking_enabled'] = 'testEmailSendToContactSync' === $this->getName() ? $this->getProvidedData()[0] : false;
+        $this->configParams['sparkpost_tracking_enabled'] = 'testEmailSendToContactSync' === $this->getName(false) ? $this->getProvidedData()[0] : false;
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
     }
@@ -36,18 +36,23 @@ class SparkpostTransportTest extends MauticMysqlTestCase
      */
     public function testEmailSendToContactSync(bool $expectedTrackingConfig): void
     {
+        $this->client->catchExceptions(false);
         $expectedResponses = [
             function ($method, $url, $options) use ($expectedTrackingConfig): MockResponse {
                 Assert::assertSame(Request::METHOD_POST, $method);
                 Assert::assertSame('https://api.sparkpost.com/api/v1/utils/content-previewer/', $url);
-                $this->assertSparkpostRequestBody($options['body'], $expectedTrackingConfig);
+                $bodyArray = json_decode($options['body'], true);
+                $this->assertSparkpostRequestBody($bodyArray, $expectedTrackingConfig);
+                $this->assertSubstitutionData($bodyArray['substitution_data']);
 
                 return new MockResponse('{"results": {"subject": "Hello there!", "html": "This is test body for {contactfield=email}!"}}');
             },
             function ($method, $url, $options) use ($expectedTrackingConfig): MockResponse {
                 Assert::assertSame(Request::METHOD_POST, $method);
                 Assert::assertSame('https://api.sparkpost.com/api/v1/transmissions/', $url);
-                $this->assertSparkpostRequestBody($options['body'], $expectedTrackingConfig);
+                $bodyArray = json_decode($options['body'], true);
+                $this->assertSparkpostRequestBody($bodyArray, $expectedTrackingConfig);
+                $this->assertSubstitutionData($bodyArray['recipients'][0]['substitution_data']);
 
                 return new MockResponse('{"results": {"total_rejected_recipients": 0, "total_accepted_recipients": 1, "id": "11668787484950529"}}');
             },
@@ -61,7 +66,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->em->flush();
 
         $this->client->request(Request::METHOD_GET, "/s/contacts/email/{$contact->getId()}");
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->assertResponseIsSuccessful();
         $newContent = json_decode($this->client->getResponse()->getContent(), true)['newContent'];
         $crawler    = new Crawler($newContent, $this->client->getInternalRequest()->getUri());
         $form       = $crawler->selectButton('Send')->form();
@@ -72,7 +77,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
             ]
         );
         $this->client->submit($form);
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->assertResponseIsSuccessful();
         self::assertQueuedEmailCount(1);
 
         $email      = self::getMailerMessage();
@@ -140,24 +145,33 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         Assert::assertSame('Hi! This is a test email from Mautic. Testing...testing...1...2...3!', $bodyArray['content']['text']);
     }
 
-    private function assertSparkpostRequestBody(string $body, bool $expectedTrackingConfig): void
+    /**
+     * @param mixed[] $bodyArray
+     */
+    private function assertSparkpostRequestBody(array $bodyArray, bool $expectedTrackingConfig): void
     {
-        $bodyArray = json_decode($body, true);
         Assert::assertSame('Admin User <admin@yoursite.com>', $bodyArray['content']['from']);
         Assert::assertSame('value123', $bodyArray['content']['headers']['x-global-custom-header']);
         Assert::assertSame('This is test body for {{{ CONTACTFIELDEMAIL }}}!<img height="1" width="1" src="{{{ TRACKINGPIXEL }}}" alt="" />', $bodyArray['content']['html']);
-        Assert::assertSame('admin@mautic.test', $bodyArray['content']['reply_to']);
+        Assert::assertSame('admin@yoursite.com', $bodyArray['content']['reply_to']);
         Assert::assertSame('Hello there!', $bodyArray['content']['subject']);
         Assert::assertSame('This is test body for {{{ CONTACTFIELDEMAIL }}}!', $bodyArray['content']['text']);
-        Assert::assertSame(['open_tracking' => false, 'click_tracking' => false], $bodyArray['options']);
-        Assert::assertSame('contact@an.email', $bodyArray['substitution_data']['CONTACTFIELDEMAIL']);
-        Assert::assertSame('Hello there!', $bodyArray['substitution_data']['SUBJECT']);
-        Assert::assertArrayHasKey('SIGNATURE', $bodyArray['substitution_data']);
-        Assert::assertArrayHasKey('TRACKINGPIXEL', $bodyArray['substitution_data']);
-        Assert::assertArrayHasKey('UNSUBSCRIBETEXT', $bodyArray['substitution_data']);
-        Assert::assertArrayHasKey('UNSUBSCRIBEURL', $bodyArray['substitution_data']);
-        Assert::assertArrayHasKey('WEBVIEWTEXT', $bodyArray['substitution_data']);
-        Assert::assertArrayHasKey('WEBVIEWURL', $bodyArray['substitution_data']);
+        Assert::assertSame(['open_tracking' => $expectedTrackingConfig, 'click_tracking' => $expectedTrackingConfig], $bodyArray['options']);
+    }
+
+    /**
+     * @param array<string,string> $substitutionData
+     */
+    private function assertSubstitutionData(array $substitutionData): void
+    {
+        Assert::assertSame('contact@an.email', $substitutionData['CONTACTFIELDEMAIL']);
+        Assert::assertSame('Hello there!', $substitutionData['SUBJECT']);
+        Assert::assertArrayHasKey('SIGNATURE', $substitutionData);
+        Assert::assertArrayHasKey('TRACKINGPIXEL', $substitutionData);
+        Assert::assertArrayHasKey('UNSUBSCRIBETEXT', $substitutionData);
+        Assert::assertArrayHasKey('UNSUBSCRIBEURL', $substitutionData);
+        Assert::assertArrayHasKey('WEBVIEWTEXT', $substitutionData);
+        Assert::assertArrayHasKey('WEBVIEWURL', $substitutionData);
     }
 
     private function createContact(string $email): Lead
