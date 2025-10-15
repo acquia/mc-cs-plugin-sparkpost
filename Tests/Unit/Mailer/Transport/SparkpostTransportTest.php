@@ -81,6 +81,7 @@ class SparkpostTransportTest extends TestCase
 
         $sentMessageMock->method('getOriginalMessage')->willReturn($mauticMessage);
         $responseMock->method('getStatusCode')->willReturn(200);
+        $responseMock->method('getContent')->willReturn('{}');
 
         /** @phpstan-ignore-next-line */
         $this->httpClientMock->method('request')

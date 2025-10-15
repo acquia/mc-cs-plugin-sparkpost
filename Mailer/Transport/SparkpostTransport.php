@@ -390,11 +390,16 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
      */
     private function handleError(ResponseInterface $response): void
     {
+        $data = json_decode($response->getContent(false), true);
+
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new HttpTransportException(sprintf('Invalid Sparkpost JSON response. JSON error: "%s", HTTP status code: %d, HTTP response string: "%s"', json_last_error_msg(), $response->getStatusCode(), $response->getContent(false)), $response, $response->getStatusCode());
+        }
+
         if (200 === $response->getStatusCode()) {
             return;
         }
 
-        $data = json_decode($response->getContent(false), true);
         $this->getLogger()->error('SparkpostApiTransport error response', $data);
 
         throw new HttpTransportException(json_encode($data['errors']), $response, $response->getStatusCode());
