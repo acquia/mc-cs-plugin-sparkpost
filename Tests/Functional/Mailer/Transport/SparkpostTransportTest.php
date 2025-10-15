@@ -196,31 +196,31 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         // Inject the dynamic DSN option inputs that would normally be added via JavaScript
         // This simulates the user clicking the button to add DSN options
         $html = $this->client->getResponse()->getContent();
-        
+
         // Inject both the label and value inputs for the DSN option
         // The label should be set to "region" and the value to the test value
         $injectedInputs = '
             <input type="text" id="config_emailconfig_mailer_dsn_options_list_0_label" name="config[emailconfig][mailer_dsn][options][list][0][label]" class="form-control sortable-label" placeholder="Label" autocomplete="false" value="">
             <input type="text" id="config_emailconfig_mailer_dsn_options_list_0_value" name="config[emailconfig][mailer_dsn][options][list][0][value]" class="form-control sortable-value" placeholder="Value" autocomplete="false" value="">
         ';
-        
+
         // Inject the inputs before the closing form tag
-        $html = str_replace('</form>', $injectedInputs . '</form>', $html);
-        
+        $html = str_replace('</form>', $injectedInputs.'</form>', $html);
+
         // Create a new crawler with the modified HTML
         $crawler = new Crawler($html, $this->client->getInternalRequest()->getUri());
 
         // Set form data - we need to set the DSN scheme to sparkpost for validation to trigger
         $form = $crawler->selectButton('config[buttons][save]')->form();
         $form->setValues([
-            'config[emailconfig][mailer_dsn][scheme]' => 'mautic+sparkpost+api',
-            'config[emailconfig][mailer_dsn][host]' => 'default',
-            'config[emailconfig][mailer_dsn][user]' => '',
-            'config[emailconfig][mailer_dsn][password]' => 'test_api_key',
-            'config[emailconfig][mailer_dsn][port]' => '',
+            'config[emailconfig][mailer_dsn][scheme]'                  => 'mautic+sparkpost+api',
+            'config[emailconfig][mailer_dsn][host]'                    => 'default',
+            'config[emailconfig][mailer_dsn][user]'                    => '',
+            'config[emailconfig][mailer_dsn][password]'                => 'test_api_key',
+            'config[emailconfig][mailer_dsn][port]'                    => '',
             'config[emailconfig][mailer_dsn][options][list][0][label]' => 'region',
             'config[emailconfig][mailer_dsn][options][list][0][value]' => $regionValue,
-            'config[leadconfig][contact_columns]' => ['name', 'email', 'id'],
+            'config[leadconfig][contact_columns]'                      => ['name', 'email', 'id'],
         ]);
 
         // Submit and check for validation error

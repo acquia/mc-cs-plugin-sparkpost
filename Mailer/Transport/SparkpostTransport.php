@@ -58,9 +58,9 @@ class SparkpostTransport extends AbstractApiTransport implements TokenTransportI
         string $region,
         private TransportCallback $callback,
         private CoreParametersHelper $coreParametersHelper,
-        HttpClientInterface $client = null,
-        EventDispatcherInterface $dispatcher = null,
-        LoggerInterface $logger = null,
+        ?HttpClientInterface $client = null,
+        ?EventDispatcherInterface $dispatcher = null,
+        ?LoggerInterface $logger = null,
     ) {
         parent::__construct($client, $dispatcher, $logger);
         $this->host = self::SPARK_POST_HOSTS[$region] ?? self::SPARK_POST_HOSTS['us'];
