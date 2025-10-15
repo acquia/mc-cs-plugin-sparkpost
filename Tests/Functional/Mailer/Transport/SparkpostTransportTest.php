@@ -26,14 +26,12 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->configParams['mailer_custom_headers']      = ['x-global-custom-header' => 'value123'];
         $this->configParams['mailer_from_email']          = 'admin@mautic.test';
         $this->configParams['mailer_from_name']           = 'Admin';
-        $this->configParams['sparkpost_tracking_enabled'] = 'testEmailSendToContactSync' === $this->getName(false) ? $this->getProvidedData()[0] : false;
+        $this->configParams['sparkpost_tracking_enabled'] = 'testEmailSendToContactSync' === $this->name() ? $this->providedData()[0] : false;
         parent::setUp();
         $this->translator = self::getContainer()->get('translator');
     }
 
-    /**
-     * @dataProvider provideTrackingConfig
-     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('provideTrackingConfig')]
     public function testEmailSendToContactSync(bool $expectedTrackingConfig): void
     {
         $expectedResponses = [
@@ -106,7 +104,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
     /**
      * @return array<string, bool[]>
      */
-    public function provideTrackingConfig(): iterable
+    public static function provideTrackingConfig(): iterable
     {
         yield 'sparkpost_tracking_enabled is TRUE' => [true];
         yield 'sparkpost_tracking_enabled is FALSE' => [false];
@@ -188,44 +186,62 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         return $lead;
     }
 
-    /**
-     * @dataProvider dataInvalidDsn
-     *
-     * @param array<string, string> $data
-     */
-    public function testInvalidDsn(array $data, string $expectedMessage): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('dataInvalidDsn')]
+    public function testInvalidDsn(string $regionValue, string $expectedMessage): void
     {
         // Request config edit page
-        $crawler = $this->client->request(Request::METHOD_GET, '/s/config/edit');
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->client->request(Request::METHOD_GET, '/s/config/edit');
+        $this->assertResponseIsSuccessful();
 
-        // Set form data
+        // Inject the dynamic DSN option inputs that would normally be added via JavaScript
+        // This simulates the user clicking the button to add DSN options
+        $html = $this->client->getResponse()->getContent();
+        
+        // Inject both the label and value inputs for the DSN option
+        // The label should be set to "region" and the value to the test value
+        $injectedInputs = '
+            <input type="text" id="config_emailconfig_mailer_dsn_options_list_0_label" name="config[emailconfig][mailer_dsn][options][list][0][label]" class="form-control sortable-label" placeholder="Label" autocomplete="false" value="">
+            <input type="text" id="config_emailconfig_mailer_dsn_options_list_0_value" name="config[emailconfig][mailer_dsn][options][list][0][value]" class="form-control sortable-value" placeholder="Value" autocomplete="false" value="">
+        ';
+        
+        // Inject the inputs before the closing form tag
+        $html = str_replace('</form>', $injectedInputs . '</form>', $html);
+        
+        // Create a new crawler with the modified HTML
+        $crawler = new Crawler($html, $this->client->getInternalRequest()->getUri());
+
+        // Set form data - we need to set the DSN scheme to sparkpost for validation to trigger
         $form = $crawler->selectButton('config[buttons][save]')->form();
-        $form->setValues($data + ['config[leadconfig][contact_columns]' => ['name', 'email', 'id']]);
+        $form->setValues([
+            'config[emailconfig][mailer_dsn][scheme]' => 'mautic+sparkpost+api',
+            'config[emailconfig][mailer_dsn][host]' => 'default',
+            'config[emailconfig][mailer_dsn][user]' => '',
+            'config[emailconfig][mailer_dsn][password]' => 'test_api_key',
+            'config[emailconfig][mailer_dsn][port]' => '',
+            'config[emailconfig][mailer_dsn][options][list][0][label]' => 'region',
+            'config[emailconfig][mailer_dsn][options][list][0][value]' => $regionValue,
+            'config[leadconfig][contact_columns]' => ['name', 'email', 'id'],
+        ]);
 
-        // Check if there is the given validation error
+        // Submit and check for validation error
         $crawler = $this->client->submit($form);
-        Assert::assertTrue($this->client->getResponse()->isOk());
+        $this->assertResponseIsSuccessful();
         Assert::assertStringContainsString($this->translator->trans($expectedMessage, [], 'validators'), $crawler->text());
     }
 
     /**
      * @return array<string, mixed[]>
      */
-    public function dataInvalidDsn(): iterable
+    public static function dataInvalidDsn(): iterable
     {
         yield 'Empty region' => [
-            [
-                'config[emailconfig][mailer_dsn][options][list][0][value]' => '',
-            ],
-            'mautic.sparkpost.plugin.region.empty',
+            'regionValue'     => '',
+            'expectedMessage' => 'mautic.sparkpost.plugin.region.empty',
         ];
 
         yield 'Invalid region' => [
-            [
-                'config[emailconfig][mailer_dsn][options][list][0][value]' => 'invalid_region',
-            ],
-            'mautic.sparkpost.plugin.region.invalid',
+            'regionValue'     => 'invalid_region',
+            'expectedMessage' => 'mautic.sparkpost.plugin.region.invalid',
         ];
     }
 }
