@@ -8,6 +8,7 @@ use Mautic\CoreBundle\Helper\UserHelper;
 use Mautic\CoreBundle\Test\MauticMysqlTestCase;
 use Mautic\LeadBundle\Entity\Lead;
 use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -31,7 +32,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         $this->translator = self::getContainer()->get('translator');
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('provideTrackingConfig')]
+    #[DataProvider('provideTrackingConfig')]
     public function testEmailSendToContactSync(bool $expectedTrackingConfig): void
     {
         $expectedResponses = [
@@ -186,7 +187,7 @@ class SparkpostTransportTest extends MauticMysqlTestCase
         return $lead;
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('dataInvalidDsn')]
+    #[DataProvider('dataInvalidDsn')]
     public function testInvalidDsn(string $regionValue, string $expectedMessage): void
     {
         // Request config edit page
