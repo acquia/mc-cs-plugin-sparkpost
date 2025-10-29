@@ -15,6 +15,7 @@ use Mautic\LeadBundle\Entity\DoNotContact;
 use Mautic\LeadBundle\Entity\Lead;
 use MauticPlugin\SparkpostBundle\EventSubscriber\CallbackSubscriber;
 use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -22,7 +23,7 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
 {
     protected function setUp(): void
     {
-        if ('testSparkpostTransportNotConfigured' !== $this->getName()) {
+        if ('testSparkpostTransportNotConfigured' !== $this->name()) {
             $this->configParams['mailer_dsn'] = 'mautic+sparkpost+api://:some_api@some_host:25?region=us';
         }
 
@@ -37,9 +38,7 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
         Assert::assertSame(404, $response->getStatusCode());
     }
 
-    /**
-     * @dataProvider provideMessageEventType
-     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('provideMessageEventType')]
     public function testSparkpostCallbackProcessByHashId(string $type, string $bounceClass): void
     {
         $parameters                                          = $this->getParameters($type, $bounceClass);
@@ -73,9 +72,7 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
         }
     }
 
-    /**
-     * @dataProvider provideMessageEventType
-     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('provideMessageEventType')]
     public function testSparkpostCallbackProcessByEmailAddress(string $type, string $bounceClass): void
     {
         $parameters = $this->getParameters($type, $bounceClass);
@@ -107,7 +104,7 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
     /**
      * @return array<mixed>
      */
-    public function provideMessageEventType(): iterable
+    public static function provideMessageEventType(): iterable
     {
         yield ['policy_rejection', '25'];
         yield ['out_of_band', '25'];
@@ -231,19 +228,21 @@ class CallbackSubscriberTest extends MauticMysqlTestCase
     }
 ] 
 JSON;
-        $request = new Request([], json_decode($payload, true));
-        $event   = new TransportWebhookEvent($request);
-
+        $request    = new Request([], json_decode($payload, true));
+        $event      = new TransportWebhookEvent($request);
         $dispatcher = new EventDispatcher();
 
-        $transportCallback    = $this->getMockBuilder(TransportCallback::class)->disableOriginalConstructor()->getMock();
-        $coreParametersHelper = $this->getMockBuilder(CoreParametersHelper::class)->disableOriginalConstructor()->getMock();
+        /** @var TransportCallback&MockObject $transportCallback */
+        $transportCallback = $this->createMock(TransportCallback::class);
+
+        /** @var CoreParametersHelper&MockObject $coreParametersHelper */
+        $coreParametersHelper = $this->createMock(CoreParametersHelper::class);
 
         $coreParametersHelper->method('get')
             ->with('mailer_dsn')
             ->willReturn('mautic+sparkpost+api://:some_api@some_host:25?region=us');
 
-        $subscriber           = new CallbackSubscriber(
+        $subscriber = new CallbackSubscriber(
             $transportCallback,
             $coreParametersHelper
         );
